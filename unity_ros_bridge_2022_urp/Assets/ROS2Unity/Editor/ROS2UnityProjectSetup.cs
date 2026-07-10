@@ -19,6 +19,7 @@ namespace ROS2Unity.Editor
             "Assets/ThirdParty/UnityRoboticsWarehouse/Meshes/Warehouse.fbx";
         private const string WarehouseRackPath =
             "Assets/ThirdParty/UnityRoboticsWarehouse/Meshes/ShelvingRackA.fbx";
+        private const float WarehouseRackScale = 60f;
         private const string TurtleBotBasePath =
             "Assets/ThirdParty/TurtleBot3/Meshes/Bases/burger_base.prefab";
         private const string TurtleBotLeftWheelPath =
@@ -117,20 +118,17 @@ namespace ROS2Unity.Editor
 
         public static void AnalyzeWarehouseModel()
         {
-            GameObject model = AssetDatabase.LoadAssetAtPath<GameObject>(WarehouseModelPath);
-            if (model == null)
-            {
-                throw new System.IO.FileNotFoundException(
-                    "Warehouse model was not imported.", WarehouseModelPath);
-            }
-
-            Renderer[] renderers = model.GetComponentsInChildren<Renderer>(true);
-            Debug.Log("ROS2UNITY_WAREHOUSE_MODEL: renderers=" + renderers.Length);
-            foreach (Renderer renderer in renderers)
-            {
-                Debug.Log("ROS2UNITY_WAREHOUSE_PART: " + renderer.name
-                    + " bounds=" + renderer.bounds.size);
-            }
+            Scene scene = EditorSceneManager.NewScene(
+                NewSceneSetup.EmptyScene,
+                NewSceneMode.Single);
+            GameObject warehouse = InstantiateModel(WarehouseModelPath);
+            Renderer[] renderers = warehouse.GetComponentsInChildren<Renderer>(true);
+            Bounds bounds = CalculateBounds(warehouse);
+            Debug.Log("ROS2UNITY_WAREHOUSE_BOUNDS: renderers=" + renderers.Length
+                + " center=" + bounds.center + " size=" + bounds.size
+                + " min=" + bounds.min + " max=" + bounds.max);
+            Object.DestroyImmediate(warehouse);
+            EditorSceneManager.CloseScene(scene, true);
         }
 
         public static void AnalyzeTurtleBotModel()
@@ -166,13 +164,49 @@ namespace ROS2Unity.Editor
                 NewSceneMode.Single);
             GameObject rack = InstantiateModel(WarehouseRackPath);
             rack.transform.rotation = Quaternion.Euler(0f, 90f, 0f);
-            rack.transform.localScale = Vector3.one * 100f;
+            rack.transform.localScale = Vector3.one * WarehouseRackScale;
             Bounds bounds = CalculateBounds(rack);
             Debug.Log("ROS2UNITY_RACK_BOUNDS: center=" + bounds.center
                 + " size=" + bounds.size + " min=" + bounds.min
                 + " max=" + bounds.max);
             Object.DestroyImmediate(rack);
             EditorSceneManager.CloseScene(scene, true);
+        }
+
+        public static void CaptureWarehousePreview()
+        {
+            EditorSceneManager.OpenScene(WarehouseScenePath, OpenSceneMode.Single);
+            Camera camera = Camera.main;
+            if (camera == null)
+            {
+                throw new System.InvalidOperationException(
+                    "Warehouse scene does not contain a Main Camera.");
+            }
+
+            const string outputPath = "/private/tmp/ros2unity-warehouse-preview.png";
+            RenderTexture target = new RenderTexture(1280, 720, 24);
+            RenderTexture previousActive = RenderTexture.active;
+            RenderTexture previousTarget = camera.targetTexture;
+            Texture2D image = new Texture2D(1280, 720, TextureFormat.RGBA32, false);
+
+            try
+            {
+                camera.targetTexture = target;
+                camera.Render();
+                RenderTexture.active = target;
+                image.ReadPixels(new Rect(0f, 0f, 1280f, 720f), 0, 0);
+                image.Apply();
+                File.WriteAllBytes(outputPath, image.EncodeToPNG());
+                Debug.Log("ROS2UNITY_WAREHOUSE_PREVIEW_OK: " + outputPath);
+            }
+            finally
+            {
+                camera.targetTexture = previousTarget;
+                RenderTexture.active = previousActive;
+                Object.DestroyImmediate(image);
+                target.Release();
+                Object.DestroyImmediate(target);
+            }
         }
 
         [MenuItem("ROS2Unity/Build URP Warehouse Scene")]
@@ -323,7 +357,7 @@ namespace ROS2Unity.Editor
                     rack.transform.SetParent(rackRoot.transform);
                     rack.transform.position = new Vector3(x, 0f, z);
                     rack.transform.rotation = Quaternion.Euler(0f, 90f, 0f);
-                    rack.transform.localScale = Vector3.one * 100f;
+                    rack.transform.localScale = Vector3.one * WarehouseRackScale;
 
                     foreach (Renderer renderer in rack.GetComponentsInChildren<Renderer>(true))
                     {
@@ -331,7 +365,7 @@ namespace ROS2Unity.Editor
                         AddMeshCollider(renderer.gameObject);
                     }
 
-                    float[] loadOffsets = { -1.15f, 1.15f };
+                    float[] loadOffsets = { -0.65f, 0.65f };
                     foreach (float loadOffset in loadOffsets)
                     {
                         CreateShelfLoad(
@@ -534,8 +568,8 @@ namespace ROS2Unity.Editor
             cameraObject.tag = "MainCamera";
             Camera camera = cameraObject.AddComponent<Camera>();
             cameraObject.AddComponent<AudioListener>();
-            cameraObject.transform.position = new Vector3(3.4f, 2.2f, -16f);
-            cameraObject.transform.LookAt(target.position + Vector3.up * 0.25f);
+            cameraObject.transform.position = new Vector3(0f, 4.5f, -17f);
+            cameraObject.transform.LookAt(target.position + Vector3.up * 0.4f);
             camera.clearFlags = CameraClearFlags.Skybox;
         }
 
