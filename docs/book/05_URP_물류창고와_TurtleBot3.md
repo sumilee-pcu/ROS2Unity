@@ -39,7 +39,22 @@ ROS2Unity > Build URP Warehouse Scene
 ROS2UNITY_WAREHOUSE_SETUP_OK
 ```
 
-공식 `ShelvingRackA.fbx`는 이 프로젝트의 미터 단위 기준보다 작게 임포트된다. 씬 생성기는 창고와 제품 크기를 함께 고려해 랙을 `60`배로 보정하고 약 `2.4 × 3 × 0.6 m` 크기로 배치한다. 화물 상자는 바닥에 직접 띄워 놓지 않고, 각 선반 높이에 맞춘 팔레트 위에 올린다. 장면을 수동으로 수정할 때도 이 스케일과 높이 기준을 유지한다.
+장면 전체는 공식 [Robotics Warehouse](https://github.com/Unity-Technologies/Robotics-Warehouse)와 [Robotics Nav2 SLAM Example](https://github.com/Unity-Technologies/Robotics-Nav2-SLAM-Example)의 단위 체계를 따른다. Unity 좌표 `1`은 `1 m`이고, TurtleBot3의 원본 메시 단위는 `mm`이므로 `0.001`을 적용한다.
+
+| 대상 | 적용 기준 | 생성 후 크기 |
+|---|---|---|
+| 공식 Warehouse | 원본 스케일 `1` | 약 `30.89 × 8.25 × 54.86 m` |
+| ShelvingRackA | 배율 상수가 아닌 목표 높이로 자동 정규화 | 약 `2.83 × 3.65 × 0.95 m` |
+| TurtleBot3 Burger | 원본 메시 × `0.001` | 약 `0.18 × 0.19 × 0.14 m` |
+| 화물과 팔레트 | 랙 FBX에 포함된 원본 메시 사용 | 선반과 일체 배치 |
+
+화물 큐브를 별도로 생성하지 않으므로 중복 적재와 공중 배치가 발생하지 않는다. 로봇은 랙 사이 통로 중앙에서 시작하고 메시 하단을 콜라이더 바닥에 자동 정렬한다. 가까운 추적 카메라·청록색 가시성 링·노란 안전선으로 실제 크기를 유지하면서도 화면에서 쉽게 찾을 수 있다. 터미널로 포커스를 옮겨도 ROS 제어가 멈추지 않도록 백그라운드 실행을 활성화한다.
+
+현재 카메라 구도를 이미지로 점검하려면 다음 메뉴를 실행한다.
+
+```text
+ROS2Unity > Capture Warehouse Preview
+```
 
 ## 5. Jazzy 연결
 
@@ -64,7 +79,7 @@ heartbeat: jazzy-ok:...
 docker compose exec ros2unity bash -lc \
   'source /opt/ros/jazzy/setup.bash && ros2 topic pub -r 10 \
   /cmd_vel geometry_msgs/msg/Twist \
-  "{linear: {x: 0.5}, angular: {z: 0.3}}"'
+  "{linear: {x: 0.15}, angular: {z: 0.2}}"'
 ```
 
 발행을 멈출 때는 `Ctrl+C`를 누른다. 명령이 끊기면 0.5초 뒤 안전 정지하도록 구성되어 있다.

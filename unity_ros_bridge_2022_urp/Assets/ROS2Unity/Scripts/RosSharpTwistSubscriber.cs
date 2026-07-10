@@ -12,6 +12,7 @@ namespace ROS2Unity
         private float pendingLinearX;
         private float pendingAngularZ;
         private bool hasPendingCommand;
+        private bool runtimeCommandLogged;
 
         protected override void ReceiveMessage(Twist message)
         {
@@ -43,6 +44,13 @@ namespace ROS2Unity
             if (Controller != null)
             {
                 Controller.SetCommand(linearX, angularZ);
+                if (!runtimeCommandLogged)
+                {
+                    Debug.Log("ROS2UNITY_CMD_VEL_RECEIVED: linear.x="
+                        + linearX.ToString("F2") + ", angular.z="
+                        + angularZ.ToString("F2"));
+                    runtimeCommandLogged = true;
+                }
             }
         }
     }

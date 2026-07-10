@@ -15,6 +15,8 @@ namespace ROS2Unity
 
         private void Start()
         {
+            Application.runInBackground = true;
+
             if (!HasCommandLineFlag("-ros2unitySmokeTest"))
             {
                 enabled = false;

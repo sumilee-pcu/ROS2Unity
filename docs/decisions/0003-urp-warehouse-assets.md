@@ -7,6 +7,8 @@
 
 Unity 2022.3.62f3의 URP 프로젝트를 물류창고 실습 주 프로젝트로 사용한다. Unity Robotics Warehouse와 TurtleBot3는 전체 예제 프로젝트를 합치지 않고 필요한 메시 자산만 선별해 포함한다.
 
+장면의 물리 단위는 `1 Unity unit = 1 m`로 통일한다. TurtleBot3의 밀리미터 메시에는 `0.001`을 적용하고, 랙은 임의 배율이 아니라 목표 높이 `3.65 m`에 맞춰 자동 정규화한다. 원본 랙에 포함된 상자와 팔레트를 사용하며 별도 화물 큐브를 중복 생성하지 않는다.
+
 ## 이유
 
 - 공식 Robotics Warehouse 전체 패키지는 Unity 2020.3, URP 10, Perception 0.9 preview에 의존한다.

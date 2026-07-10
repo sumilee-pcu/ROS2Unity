@@ -19,7 +19,8 @@ namespace ROS2Unity.Editor
             "Assets/ThirdParty/UnityRoboticsWarehouse/Meshes/Warehouse.fbx";
         private const string WarehouseRackPath =
             "Assets/ThirdParty/UnityRoboticsWarehouse/Meshes/ShelvingRackA.fbx";
-        private const float WarehouseRackScale = 60f;
+        private const float WarehouseRackTargetHeight = 3.65f;
+        private const float TurtleBotMeshMetersPerSourceUnit = 0.001f;
         private const string TurtleBotBasePath =
             "Assets/ThirdParty/TurtleBot3/Meshes/Bases/burger_base.prefab";
         private const string TurtleBotLeftWheelPath =
@@ -164,7 +165,7 @@ namespace ROS2Unity.Editor
                 NewSceneMode.Single);
             GameObject rack = InstantiateModel(WarehouseRackPath);
             rack.transform.rotation = Quaternion.Euler(0f, 90f, 0f);
-            rack.transform.localScale = Vector3.one * WarehouseRackScale;
+            ScaleModelToHeight(rack, WarehouseRackTargetHeight);
             Bounds bounds = CalculateBounds(rack);
             Debug.Log("ROS2UNITY_RACK_BOUNDS: center=" + bounds.center
                 + " size=" + bounds.size + " min=" + bounds.min
@@ -173,6 +174,7 @@ namespace ROS2Unity.Editor
             EditorSceneManager.CloseScene(scene, true);
         }
 
+        [MenuItem("ROS2Unity/Capture Warehouse Preview")]
         public static void CaptureWarehousePreview()
         {
             EditorSceneManager.OpenScene(WarehouseScenePath, OpenSceneMode.Single);
@@ -183,7 +185,9 @@ namespace ROS2Unity.Editor
                     "Warehouse scene does not contain a Main Camera.");
             }
 
-            const string outputPath = "/private/tmp/ros2unity-warehouse-preview.png";
+            string outputPath = Path.Combine(
+                Path.GetTempPath(),
+                "ros2unity-warehouse-preview.png");
             RenderTexture target = new RenderTexture(1280, 720, 24);
             RenderTexture previousActive = RenderTexture.active;
             RenderTexture previousTarget = camera.targetTexture;
@@ -222,7 +226,11 @@ namespace ROS2Unity.Editor
             GameObject warehouse = InstantiateModel(WarehouseModelPath);
             warehouse.name = "Official Unity Robotics Warehouse (Apache-2.0)";
             ConfigureWarehouseModel(warehouse, materials);
+            Bounds warehouseBounds = CalculateBounds(warehouse);
+            Debug.Log("ROS2UNITY_WAREHOUSE_TARGET_BOUNDS: size="
+                + warehouseBounds.size);
 
+            CreateWarehouseFloorMarkings(materials);
             CreateRackAisles(materials);
             DifferentialDriveController controller = CreateAmrRobot(materials);
             GameObject bridge = CreateRosBridge(controller);
@@ -345,8 +353,9 @@ namespace ROS2Unity.Editor
         private static void CreateRackAisles(WarehouseMaterials materials)
         {
             GameObject rackRoot = new GameObject("Warehouse Rack Aisles");
-            float[] aisleX = { -8f, 0f, 8f };
-            float[] rackZ = { -8f, -2f, 4f, 10f };
+            float[] aisleX = { -13f, -6f, 1f };
+            float[] rackZ = { -9f, -1f, 7f, 15f };
+            bool scaleLogged = false;
 
             foreach (float x in aisleX)
             {
@@ -357,82 +366,101 @@ namespace ROS2Unity.Editor
                     rack.transform.SetParent(rackRoot.transform);
                     rack.transform.position = new Vector3(x, 0f, z);
                     rack.transform.rotation = Quaternion.Euler(0f, 90f, 0f);
-                    rack.transform.localScale = Vector3.one * WarehouseRackScale;
+                    ScaleModelToHeight(rack, WarehouseRackTargetHeight);
+
+                    if (!scaleLogged)
+                    {
+                        Debug.Log("ROS2UNITY_RACK_TARGET_BOUNDS: size="
+                            + CalculateBounds(rack).size);
+                        scaleLogged = true;
+                    }
 
                     foreach (Renderer renderer in rack.GetComponentsInChildren<Renderer>(true))
                     {
-                        SetRendererMaterial(renderer, materials.Rack);
+                        ConfigureRackRenderer(renderer, materials);
                         AddMeshCollider(renderer.gameObject);
-                    }
-
-                    float[] loadOffsets = { -0.65f, 0.65f };
-                    foreach (float loadOffset in loadOffsets)
-                    {
-                        CreateShelfLoad(
-                            rackRoot.transform,
-                            new Vector3(x + loadOffset, 0f, z),
-                            0.06f,
-                            0.445f,
-                            materials.Pallet,
-                            materials.Cargo);
-                        CreateShelfLoad(
-                            rackRoot.transform,
-                            new Vector3(x + loadOffset, 0f, z),
-                            1.06f,
-                            1.445f,
-                            materials.Pallet,
-                            materials.CargoAccent);
                     }
                 }
             }
         }
 
-        private static void CreateShelfLoad(
-            Transform parent,
-            Vector3 basePosition,
-            float palletHeight,
-            float cargoHeight,
-            Material palletMaterial,
-            Material cargoMaterial)
+        private static void CreateWarehouseFloorMarkings(WarehouseMaterials materials)
         {
-            GameObject pallet = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            pallet.name = "Wood Pallet";
-            pallet.transform.SetParent(parent);
-            pallet.transform.position = basePosition + Vector3.up * palletHeight;
-            pallet.transform.localScale = new Vector3(0.96f, 0.12f, 0.90f);
-            pallet.GetComponent<Renderer>().sharedMaterial = palletMaterial;
+            GameObject markings = new GameObject("AMR Safety Lanes");
+            float[] laneBoundaries = { -11f, -8f, -4f, -1f };
 
-            GameObject box = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            box.name = "Cargo Box";
-            box.transform.SetParent(parent);
-            box.transform.position = basePosition + Vector3.up * cargoHeight;
-            box.transform.localScale = new Vector3(0.8f, 0.65f, 0.8f);
-            box.GetComponent<Renderer>().sharedMaterial = cargoMaterial;
+            foreach (float x in laneBoundaries)
+            {
+                GameObject line = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                line.name = $"Safety Line x={x:0}";
+                line.transform.SetParent(markings.transform);
+                line.transform.position = new Vector3(x, 0.012f, 0f);
+                line.transform.localScale = new Vector3(0.07f, 0.012f, 44f);
+                line.GetComponent<Renderer>().sharedMaterial = materials.SafetyLine;
+                Object.DestroyImmediate(line.GetComponent<Collider>());
+            }
+        }
+
+        private static void ConfigureRackRenderer(
+            Renderer renderer,
+            WarehouseMaterials materials)
+        {
+            Material[] source = renderer.sharedMaterials;
+            int count = Mathf.Max(1, source.Length);
+            Material[] replacements = new Material[count];
+            string rendererName = renderer.name.ToLowerInvariant();
+            bool palletRenderer = rendererName.Contains("pallet");
+
+            for (int index = 0; index < count; index++)
+            {
+                string materialName = source.Length > index && source[index] != null
+                    ? source[index].name.ToLowerInvariant()
+                    : renderer.name.ToLowerInvariant();
+
+                if (materialName.Contains("woodpallet")
+                    || (palletRenderer && index == count - 1))
+                {
+                    replacements[index] = materials.Pallet;
+                }
+                else if (materialName.Contains("boxes") || palletRenderer)
+                {
+                    replacements[index] = materialName.Contains("slogo") || index > 0
+                        ? materials.CargoAccent
+                        : materials.Cargo;
+                }
+                else
+                {
+                    replacements[index] = materials.Rack;
+                }
+            }
+
+            renderer.sharedMaterials = replacements;
         }
 
         private static DifferentialDriveController CreateAmrRobot(
             WarehouseMaterials materials)
         {
             GameObject robot = new GameObject("TurtleBot3 Burger AMR");
-            robot.transform.position = new Vector3(0f, 0.2f, -12f);
+            robot.transform.position = new Vector3(-2.5f, 0f, -16f);
 
             Rigidbody body = robot.AddComponent<Rigidbody>();
-            body.mass = 8f;
+            body.mass = 1f;
             body.interpolation = RigidbodyInterpolation.Interpolate;
             body.constraints = RigidbodyConstraints.FreezeRotationX
                 | RigidbodyConstraints.FreezeRotationZ;
 
             CapsuleCollider collider = robot.AddComponent<CapsuleCollider>();
-            collider.radius = 0.25f;
-            collider.height = 0.36f;
-            collider.center = new Vector3(0f, 0.10f, 0f);
+            collider.radius = 0.10f;
+            collider.height = 0.20f;
+            collider.center = new Vector3(0f, 0.10f, -0.02f);
 
             DifferentialDriveController controller =
                 robot.AddComponent<DifferentialDriveController>();
 
             GameObject visualRoot = new GameObject("Official TurtleBot3 Meshes");
             visualRoot.transform.SetParent(robot.transform, false);
-            visualRoot.transform.localScale = Vector3.one * 0.003f;
+            visualRoot.transform.localScale =
+                Vector3.one * TurtleBotMeshMetersPerSourceUnit;
 
             GameObject baseVisual = InstantiateRobotPart(
                 TurtleBotBasePath,
@@ -477,7 +505,42 @@ namespace ROS2Unity.Editor
                 SetRendererMaterial(renderer, materials.Lidar);
             }
 
+            AlignModelBottomToY(visualRoot, robot.transform.position.y);
+            Debug.Log("ROS2UNITY_TURTLEBOT_TARGET_BOUNDS: size="
+                + CalculateBounds(visualRoot).size);
+
+            CreateRobotVisibilityRing(robot.transform, materials.RobotMarker);
+
             return controller;
+        }
+
+        private static void CreateRobotVisibilityRing(
+            Transform robot,
+            Material markerMaterial)
+        {
+            GameObject markerObject = new GameObject("Robot Visibility Ring");
+            markerObject.transform.SetParent(robot, false);
+            markerObject.transform.localPosition = new Vector3(0f, 0.006f, 0f);
+
+            LineRenderer marker = markerObject.AddComponent<LineRenderer>();
+            marker.sharedMaterial = markerMaterial;
+            marker.useWorldSpace = false;
+            marker.loop = true;
+            marker.positionCount = 64;
+            marker.startWidth = 0.018f;
+            marker.endWidth = 0.018f;
+            marker.numCornerVertices = 4;
+            marker.shadowCastingMode = ShadowCastingMode.Off;
+            marker.receiveShadows = false;
+
+            const float radius = 0.25f;
+            for (int index = 0; index < marker.positionCount; index++)
+            {
+                float angle = Mathf.PI * 2f * index / marker.positionCount;
+                marker.SetPosition(
+                    index,
+                    new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius));
+            }
         }
 
         private static GameObject InstantiateRobotPart(
@@ -544,10 +607,12 @@ namespace ROS2Unity.Editor
 
             Vector3[] positions =
             {
-                new Vector3(-8f, 5.5f, -5f),
-                new Vector3(8f, 5.5f, -5f),
-                new Vector3(-8f, 5.5f, 7f),
-                new Vector3(8f, 5.5f, 7f)
+                new Vector3(-13f, 5.5f, -16f),
+                new Vector3(-1f, 5.5f, -16f),
+                new Vector3(-13f, 5.5f, 0f),
+                new Vector3(-1f, 5.5f, 0f),
+                new Vector3(-13f, 5.5f, 16f),
+                new Vector3(-1f, 5.5f, 16f)
             };
 
             foreach (Vector3 position in positions)
@@ -555,8 +620,8 @@ namespace ROS2Unity.Editor
                 GameObject lightObject = new GameObject("Warehouse Area Light");
                 Light light = lightObject.AddComponent<Light>();
                 light.type = LightType.Point;
-                light.range = 14f;
-                light.intensity = 2.2f;
+                light.range = 13f;
+                light.intensity = 2.6f;
                 light.color = new Color(1f, 0.92f, 0.78f);
                 lightObject.transform.position = position;
             }
@@ -568,9 +633,16 @@ namespace ROS2Unity.Editor
             cameraObject.tag = "MainCamera";
             Camera camera = cameraObject.AddComponent<Camera>();
             cameraObject.AddComponent<AudioListener>();
-            cameraObject.transform.position = new Vector3(0f, 4.5f, -17f);
-            cameraObject.transform.LookAt(target.position + Vector3.up * 0.4f);
+            camera.fieldOfView = 50f;
+            camera.nearClipPlane = 0.05f;
             camera.clearFlags = CameraClearFlags.Skybox;
+
+            RobotFollowCamera followCamera =
+                cameraObject.AddComponent<RobotFollowCamera>();
+            followCamera.Target = target;
+            followCamera.LocalOffset = new Vector3(0.95f, 0.58f, -1.20f);
+            followCamera.LookOffset = new Vector3(0f, 0.12f, -0.02f);
+            followCamera.SnapToTarget();
         }
 
         private static WarehouseMaterials CreateWarehouseMaterials()
@@ -605,7 +677,11 @@ namespace ROS2Unity.Editor
                 Wheel = CreateUrpMaterial(
                     "Wheel", new Color(0.025f, 0.03f, 0.035f), 0.10f, 0.22f),
                 Lidar = CreateUrpMaterial(
-                    "Lidar", new Color(0.08f, 0.85f, 0.92f), 0.22f, 0.65f, true)
+                    "Lidar", new Color(0.08f, 0.85f, 0.92f), 0.22f, 0.65f, true),
+                RobotMarker = CreateUrpMaterial(
+                    "RobotMarker", new Color(0.10f, 0.88f, 1f), 0f, 0.50f, true),
+                SafetyLine = CreateUrpMaterial(
+                    "SafetyLine", new Color(1f, 0.72f, 0.08f), 0f, 0.38f, true)
             };
             AssetDatabase.SaveAssets();
             return materials;
@@ -679,6 +755,26 @@ namespace ROS2Unity.Editor
             return bounds;
         }
 
+        private static float ScaleModelToHeight(GameObject model, float targetHeight)
+        {
+            Bounds bounds = CalculateBounds(model);
+            if (bounds.size.y <= Mathf.Epsilon)
+            {
+                throw new System.InvalidOperationException(
+                    "Cannot normalize a model without renderer height: " + model.name);
+            }
+
+            float scale = targetHeight / bounds.size.y;
+            model.transform.localScale *= scale;
+            return scale;
+        }
+
+        private static void AlignModelBottomToY(GameObject model, float targetMinY)
+        {
+            Bounds bounds = CalculateBounds(model);
+            model.transform.position += Vector3.up * (targetMinY - bounds.min.y);
+        }
+
         private static void AddMeshCollider(GameObject target)
         {
             MeshFilter meshFilter = target.GetComponent<MeshFilter>();
@@ -736,6 +832,8 @@ namespace ROS2Unity.Editor
             public Material RobotAccent;
             public Material Wheel;
             public Material Lidar;
+            public Material RobotMarker;
+            public Material SafetyLine;
         }
     }
 }

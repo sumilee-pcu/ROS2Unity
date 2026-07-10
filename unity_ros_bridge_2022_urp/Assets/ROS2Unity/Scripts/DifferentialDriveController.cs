@@ -11,6 +11,7 @@ namespace ROS2Unity
         private float linearVelocity;
         private float angularVelocity;
         private float lastCommandTime;
+        private bool runtimeMotionLogged;
 
         public bool HasReceivedCommand { get; private set; }
         public float DistanceMoved { get; private set; }
@@ -45,6 +46,13 @@ namespace ROS2Unity
             DistanceMoved += Vector3.Distance(body.position, nextPosition);
             body.MovePosition(nextPosition);
             body.MoveRotation(nextRotation);
+
+            if (!runtimeMotionLogged && DistanceMoved >= 0.02f)
+            {
+                Debug.Log("ROS2UNITY_RUNTIME_MOTION_OK: distance="
+                    + DistanceMoved.ToString("F3") + "m");
+                runtimeMotionLogged = true;
+            }
         }
     }
 }
