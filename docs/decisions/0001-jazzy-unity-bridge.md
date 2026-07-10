@@ -13,7 +13,7 @@ ROS 2 Jazzy 기반 교재에서 macOS 또는 Windows의 Unity Editor와 Ubuntu 2
 
 ## 이유
 
-- ROS#는 ROS 2, Unity UPM, Unity 2022.3 LTS를 지원한다.
+- ROS#는 ROS 2, Unity UPM, Unity 2022.3 LTS를 지원한다. 이 저장소의 재현 버전은 Unity 2022.3.62f3과 ROS# 2.2.2로 고정한다.
 - `rosbridge_suite`는 Jazzy 패키지로 제공된다.
 - Unity 호스트와 ROS 컨테이너를 WebSocket으로 분리할 수 있다.
 - 기존 `/cmd_vel`, `/odom`, `/tf`, `/scan` 계약을 재사용할 수 있다.
@@ -38,4 +38,3 @@ ROS 2 Jazzy 기반 교재에서 macOS 또는 Windows의 Unity Editor와 Ubuntu 2
 - 고대역폭 센서는 성능 한계가 있을 수 있다.
 - QoS 의미가 rosbridge를 지나며 동일하게 보존된다고 가정하지 않는다.
 - 성능 측정 결과에 따라 센서 데이터 경로만 분리할 수 있다.
-

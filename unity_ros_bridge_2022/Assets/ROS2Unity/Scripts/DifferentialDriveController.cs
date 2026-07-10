@@ -22,12 +22,12 @@ namespace ROS2Unity
         {
             linearVelocity = linearX;
             angularVelocity = angularZ;
-            lastCommandTime = Time.time;
+            lastCommandTime = Time.unscaledTime;
         }
 
         private void FixedUpdate()
         {
-            if (Time.time - lastCommandTime > commandTimeoutSeconds)
+            if (Time.unscaledTime - lastCommandTime > commandTimeoutSeconds)
             {
                 linearVelocity = 0f;
                 angularVelocity = 0f;

@@ -8,6 +8,11 @@
 [Uu]ser[Ss]ettings/
 MemoryCaptures/
 Recordings/
+*.csproj
+*.sln
+*.pidb
+*.booproj
+.vs/
 
 # ROS 2 / colcon
 ros2_ws/build/
@@ -34,4 +39,3 @@ __pycache__/
 !.env.example
 *.pem
 *.key
-
