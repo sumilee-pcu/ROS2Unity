@@ -1,0 +1,37 @@
+# Unity generated directories
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+MemoryCaptures/
+Recordings/
+
+# ROS 2 / colcon
+ros2_ws/build/
+ros2_ws/install/
+ros2_ws/log/
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.suo
+*.user
+*.userprefs
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+

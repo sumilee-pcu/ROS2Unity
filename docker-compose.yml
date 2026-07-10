@@ -1,0 +1,14 @@
+services:
+  ros2unity:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    environment:
+      ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-30}
+      ROS_AUTOMATIC_DISCOVERY_RANGE: SUBNET
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./ros2_ws:/workspace/ros2_ws
+    command: ["/workspace/scripts/start_rosbridge.sh"]
+    init: true
