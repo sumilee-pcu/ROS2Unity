@@ -159,6 +159,22 @@ namespace ROS2Unity.Editor
             }
         }
 
+        public static void AnalyzeRackModel()
+        {
+            Scene scene = EditorSceneManager.NewScene(
+                NewSceneSetup.EmptyScene,
+                NewSceneMode.Single);
+            GameObject rack = InstantiateModel(WarehouseRackPath);
+            rack.transform.rotation = Quaternion.Euler(0f, 90f, 0f);
+            rack.transform.localScale = Vector3.one * 100f;
+            Bounds bounds = CalculateBounds(rack);
+            Debug.Log("ROS2UNITY_RACK_BOUNDS: center=" + bounds.center
+                + " size=" + bounds.size + " min=" + bounds.min
+                + " max=" + bounds.max);
+            Object.DestroyImmediate(rack);
+            EditorSceneManager.CloseScene(scene, true);
+        }
+
         [MenuItem("ROS2Unity/Build URP Warehouse Scene")]
         public static void BuildWarehouseScene()
         {
@@ -307,6 +323,7 @@ namespace ROS2Unity.Editor
                     rack.transform.SetParent(rackRoot.transform);
                     rack.transform.position = new Vector3(x, 0f, z);
                     rack.transform.rotation = Quaternion.Euler(0f, 90f, 0f);
+                    rack.transform.localScale = Vector3.one * 100f;
 
                     foreach (Renderer renderer in rack.GetComponentsInChildren<Renderer>(true))
                     {
@@ -314,29 +331,49 @@ namespace ROS2Unity.Editor
                         AddMeshCollider(renderer.gameObject);
                     }
 
-                    CreateCargoBox(
-                        rackRoot.transform,
-                        new Vector3(x, 0.55f, z),
-                        materials.Cargo);
-                    CreateCargoBox(
-                        rackRoot.transform,
-                        new Vector3(x, 1.55f, z + 0.35f),
-                        materials.CargoAccent);
+                    float[] loadOffsets = { -1.15f, 1.15f };
+                    foreach (float loadOffset in loadOffsets)
+                    {
+                        CreateShelfLoad(
+                            rackRoot.transform,
+                            new Vector3(x + loadOffset, 0f, z),
+                            0.06f,
+                            0.445f,
+                            materials.Pallet,
+                            materials.Cargo);
+                        CreateShelfLoad(
+                            rackRoot.transform,
+                            new Vector3(x + loadOffset, 0f, z),
+                            1.06f,
+                            1.445f,
+                            materials.Pallet,
+                            materials.CargoAccent);
+                    }
                 }
             }
         }
 
-        private static void CreateCargoBox(
+        private static void CreateShelfLoad(
             Transform parent,
-            Vector3 position,
-            Material material)
+            Vector3 basePosition,
+            float palletHeight,
+            float cargoHeight,
+            Material palletMaterial,
+            Material cargoMaterial)
         {
+            GameObject pallet = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            pallet.name = "Wood Pallet";
+            pallet.transform.SetParent(parent);
+            pallet.transform.position = basePosition + Vector3.up * palletHeight;
+            pallet.transform.localScale = new Vector3(0.96f, 0.12f, 0.90f);
+            pallet.GetComponent<Renderer>().sharedMaterial = palletMaterial;
+
             GameObject box = GameObject.CreatePrimitive(PrimitiveType.Cube);
             box.name = "Cargo Box";
             box.transform.SetParent(parent);
-            box.transform.position = position;
+            box.transform.position = basePosition + Vector3.up * cargoHeight;
             box.transform.localScale = new Vector3(0.8f, 0.65f, 0.8f);
-            box.GetComponent<Renderer>().sharedMaterial = material;
+            box.GetComponent<Renderer>().sharedMaterial = cargoMaterial;
         }
 
         private static DifferentialDriveController CreateAmrRobot(
@@ -497,8 +534,8 @@ namespace ROS2Unity.Editor
             cameraObject.tag = "MainCamera";
             Camera camera = cameraObject.AddComponent<Camera>();
             cameraObject.AddComponent<AudioListener>();
-            cameraObject.transform.position = new Vector3(0f, 4.5f, -17f);
-            cameraObject.transform.LookAt(target.position + Vector3.up * 0.4f);
+            cameraObject.transform.position = new Vector3(3.4f, 2.2f, -16f);
+            cameraObject.transform.LookAt(target.position + Vector3.up * 0.25f);
             camera.clearFlags = CameraClearFlags.Skybox;
         }
 
@@ -525,6 +562,8 @@ namespace ROS2Unity.Editor
                     "Cargo", new Color(0.65f, 0.36f, 0.12f), 0f, 0.20f),
                 CargoAccent = CreateUrpMaterial(
                     "CargoAccent", new Color(0.80f, 0.66f, 0.24f), 0f, 0.22f),
+                Pallet = CreateUrpMaterial(
+                    "Pallet", new Color(0.42f, 0.22f, 0.08f), 0f, 0.18f),
                 RobotBody = CreateUrpMaterial(
                     "RobotBody", new Color(0.96f, 0.46f, 0.08f), 0.18f, 0.45f),
                 RobotAccent = CreateUrpMaterial(
@@ -589,6 +628,23 @@ namespace ROS2Unity.Editor
             renderer.sharedMaterials = materials;
         }
 
+        private static Bounds CalculateBounds(GameObject root)
+        {
+            Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
+            if (renderers.Length == 0)
+            {
+                return new Bounds(root.transform.position, Vector3.zero);
+            }
+
+            Bounds bounds = renderers[0].bounds;
+            for (int index = 1; index < renderers.Length; index++)
+            {
+                bounds.Encapsulate(renderers[index].bounds);
+            }
+
+            return bounds;
+        }
+
         private static void AddMeshCollider(GameObject target)
         {
             MeshFilter meshFilter = target.GetComponent<MeshFilter>();
@@ -641,6 +697,7 @@ namespace ROS2Unity.Editor
             public Material Rack;
             public Material Cargo;
             public Material CargoAccent;
+            public Material Pallet;
             public Material RobotBody;
             public Material RobotAccent;
             public Material Wheel;

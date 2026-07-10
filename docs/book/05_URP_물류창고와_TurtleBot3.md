@@ -27,7 +27,7 @@ Unity 공식 Robotics Warehouse 원본은 Unity 2020.3, URP 10, Perception 0.9 p
 
 ## 4. 씬 다시 생성
 
-Unity 메뉴에서 다음을 실행하면 URP 재질, 창고 충돌체, 랙, 화물 상자, TurtleBot3, ROS Bridge와 카메라를 다시 구성한다.
+Unity 메뉴에서 다음을 실행하면 URP 재질, 창고 충돌체, 랙, 팔레트와 화물 상자, TurtleBot3, ROS Bridge와 카메라를 다시 구성한다.
 
 ```text
 ROS2Unity > Build URP Warehouse Scene
@@ -38,6 +38,8 @@ ROS2Unity > Build URP Warehouse Scene
 ```text
 ROS2UNITY_WAREHOUSE_SETUP_OK
 ```
+
+공식 `ShelvingRackA.fbx`는 이 프로젝트의 미터 단위 기준보다 100배 작게 임포트된다. 씬 생성기는 랙을 `100`배로 보정해 약 `4 × 5 × 1 m` 크기로 배치한다. 화물 상자는 바닥에 직접 띄워 놓지 않고, 각 선반 높이에 맞춘 팔레트 위에 올린다. 장면을 수동으로 수정할 때도 이 스케일과 높이 기준을 유지한다.
 
 ## 5. Jazzy 연결
 
